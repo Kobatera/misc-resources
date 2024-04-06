@@ -1,0 +1,31 @@
+/*
+ * LoadRunner Java script. (Build: 946)
+ *
+ * Script Description:
+ *                    
+ */
+
+import lrapi.lr;
+import com.kobatera.mq.MQPost;
+
+public class Actions
+{
+
+ public int init() throws Throwable {
+  MQPost.initQueue();
+  return 0;
+ }//end of init
+
+ public int action() throws Throwable {
+
+     lr.start_transaction("T01_mqSendSMSMessage");
+     MQPost.runit("SMS");
+     lr.end_transaction("T01_mqSendSMSMessage", lr.AUTO);
+
+     return 0;
+ }//end of action
+
+ public int end() throws Throwable {
+  return 0;
+ }//end of end
+}
