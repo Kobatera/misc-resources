@@ -1,0 +1,97 @@
+/*
+ * This is a beanshell script for use with JMeter for monitoring the performance
+ * of an Apache HTTP server.  It is used in conjunction with an http sampler to
+ * produce a .CSV file containing the data retrieved from the server status data
+ * that Apache provides.
+ *
+ * Apache must be configured with the server-status turned on using mod_status.
+ * Refer to the Apache documentation on how to turn on server status.
+ *
+ * The basic steps to use this script are:
+ *  1. Create a thread group with a single user. Calculate the number of iterations
+ *     you want the status called, or set the thread group to loop forever.
+ *  2. Add a timer to the thread group to delay the frequency of requests for the
+ *     the status, e.g. 15 seconds is a good frequency.
+ *  3. Create an http sampler that requests the server status page from Apache.
+ *     The "auto" parameter must be used in the request,
+ *     e.g. http://myserver/server-status?auto
+ *  4. Add a BeanShell Post Processor to the thread group.  In the "Parameters" field
+ *     you must put the output file name that you want. You should put the full path
+ *     and file name.  For the "Script File" put this file name.  The script file location
+ *     is relative to the JMeter directory (probably the /bin directory), so don't
+ *     put the absolute path in that field.
+ *
+ *  This script expects the following format for the statuss response from Apache.
+ *
+ *    Total Accesses: 9076
+ *    Total kBytes: 7783
+ *    CPULoad: .0520565
+ *    Uptime: 65525
+ *    ReqPerSec: .138512
+ *    BytesPerSec: 121.63
+ *    BytesPerReq: 878.117
+ *    BusyWorkers: 1
+ *    IdleWorkers: 119
+ *    Scoreboard: _____________________________________________
+ *
+ *  Version: .999950
+ *  Author: Doug Baber, Kobatera, LLC
+ *  Date: 9/15/2010
+ *  License: Public domain - use and modify however you like, no warranty.
+ */
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.io.FileWriter;
+import java.io.File;
+
+//print ("Starting");
+
+String fileName = Parameters;
+File statsFile = new File(fileName);
+
+FileWriter statsWriter  = null;
+StringBuffer outline = new StringBuffer();
+SimpleDateFormat df = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+
+// if this is a new output file, put the field names in the output
+if (!statsFile.exists()){
+        outline.append("DateTime, TotalAccesses, TotalKB, CPULoad, Uptime, ReqPerSec, BytesPerSec, BytesPerReq, BusyWorkers, IdleWorkers\n");
+}
+
+// set the date format from the request.
+// prev is provided to beanshell from JMeter and contains the request result
+outline.append("\"");
+outline.append(df.format(new Date(prev.getEndTime())));
+outline.append("\"");
+
+// the response data is provided as one long string
+// split the response data into an array of strings at the line breaks
+String[] subline = null;
+String[] lines = prev.getResponseDataAsString().split("\n");
+
+// for each of the lines, split the line at the colon into an array
+// put the data into the output line in the order it came from Apache
+// don't output the "Scoreboard" data.
+for (int i=0; i<lines.length; i++){
+        subline = lines[i].split(":");
+        if (!subline[0].matches("^Scoreboard.*")){
+                outline.append(",");
+                outline.append(subline[1].trim());
+        }
+}
+
+outline.append("\n");
+
+// append the data to the output file.
+try {
+        statsWriter = new FileWriter(statsFile, true);
+        statsWriter.append(outline);
+} catch ( e) {
+        print("Exception: " + e);
+} finally {
+        statsWriter.close();
+}
+
+//print (outline.toString());
+//print ("Ending");
